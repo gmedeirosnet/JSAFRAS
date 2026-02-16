@@ -1,0 +1,102 @@
+# ============================================================================
+# DevSecOps Interview Task - J. Safra Sarasin
+# ============================================================================
+# Network topology:
+# - statistics-api: PUBLIC (port 8080) + INTERNAL
+# - device-registration-api: INTERNAL
+# - postgres: INTERNAL only
+
+services:
+  statistics-api:
+    build:
+      context: ./services/statistics-api
+      dockerfile: Dockerfile
+    container_name: statistics-api
+    ports:
+      - "8080:3000"  # Published to host
+    environment:
+      - NODE_ENV=production
+      - STATISTICS_API_PORT=3000
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=devicesdb
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppassword123
+      - DEVICE_REGISTRATION_API_URL=http://device-registration-api:3001
+    networks:
+      - public
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      device-registration-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  device-registration-api:
+    build:
+      context: ./services/device-registration-api
+      dockerfile: Dockerfile
+    container_name: device-registration-api
+    expose:
+      - "3001"
+    environment:
+      - NODE_ENV=production
+      - DEVICE_REGISTRATION_API_PORT=3001
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=devicesdb
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppassword123
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_DB=devicesdb
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppassword123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d devicesdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+networks:
+  public:
+    driver: bridge
+
+  internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+    driver: local
