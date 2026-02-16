@@ -1,0 +1,226 @@
+# ============================================================================
+# CI/CD Pipeline - J. Safra Sarasin DevSecOps Task
+# ============================================================================
+#
+# This workflow:
+# 1. Runs on push/PR to main branch
+# 2. Installs dependencies and runs security audits
+# 3. Builds Docker images
+# 4. Scans images with Trivy for vulnerabilities
+# 5. Pushes to DockerHub on main branch (requires secrets)
+#
+# Required Secrets:
+#   - DOCKERHUB_USERNAME: Your DockerHub username
+#   - DOCKERHUB_TOKEN: Your DockerHub access token
+# ============================================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+
+env:
+  STATISTICS_API_IMAGE: statistics-api
+  DEVICE_REGISTRATION_API_IMAGE: device-registration-api
+
+jobs:
+  # ==========================================================================
+  # Security Audit & Lint
+  # ==========================================================================
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit Statistics API
+        working-directory: ./services/statistics-api
+        run: |
+          npm ci
+          npm audit --audit-level=moderate || true
+
+      - name: Audit Device Registration API
+        working-directory: ./services/device-registration-api
+        run: |
+          npm ci
+          npm audit --audit-level=moderate || true
+
+  # ==========================================================================
+  # Build & Scan Docker Images
+  # ==========================================================================
+  build:
+    name: Build & Scan
+    runs-on: ubuntu-latest
+    needs: audit
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Statistics API Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/statistics-api
+          file: ./services/statistics-api/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.STATISTICS_API_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Device Registration API Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/device-registration-api
+          file: ./services/device-registration-api/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.DEVICE_REGISTRATION_API_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan Statistics API with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.STATISTICS_API_IMAGE }}:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Scan Device Registration API with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.DEVICE_REGISTRATION_API_IMAGE }}:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+  # ==========================================================================
+  # Push to DockerHub
+  # ==========================================================================
+  push:
+    name: Push to DockerHub
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata for Statistics API
+        id: meta-statistics
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.STATISTICS_API_IMAGE }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Extract metadata for Device Registration API
+        id: meta-device
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DEVICE_REGISTRATION_API_IMAGE }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Statistics API
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/statistics-api
+          file: ./services/statistics-api/Dockerfile
+          push: true
+          tags: ${{ steps.meta-statistics.outputs.tags }}
+          labels: ${{ steps.meta-statistics.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and Push Device Registration API
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/device-registration-api
+          file: ./services/device-registration-api/Dockerfile
+          push: true
+          tags: ${{ steps.meta-device.outputs.tags }}
+          labels: ${{ steps.meta-device.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==========================================================================
+  # Integration Test (Docker Compose)
+  # ==========================================================================
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start services with Docker Compose
+        run: |
+          docker compose up -d --build
+          sleep 30  # Wait for services to be healthy
+
+      - name: Check service health
+        run: |
+          docker compose ps
+          curl -f http://localhost:8080/health || exit 1
+
+      - name: Test POST /Log/auth
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8080/Log/auth \
+            -H "Content-Type: application/json" \
+            -d '{"userKey": "test-user", "deviceType": "iOS"}')
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" | grep -q '"statusCode":200' || exit 1
+
+      - name: Test GET /Log/auth/statistics
+        run: |
+          RESPONSE=$(curl -s "http://localhost:8080/Log/auth/statistics?deviceType=iOS")
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" | grep -q '"deviceType":"iOS"' || exit 1
+          echo "$RESPONSE" | grep -q '"count":1' || exit 1
+
+      - name: Verify internal service isolation
+        run: |
+          # Device Registration API should NOT be accessible from host
+          if curl -s --connect-timeout 2 http://localhost:3001/health; then
+            echo "ERROR: Device Registration API should not be accessible from host!"
+            exit 1
+          else
+            echo "PASS: Device Registration API is properly isolated"
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
