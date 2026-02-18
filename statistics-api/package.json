@@ -1,0 +1,26 @@
+{
+  "name": "statistics-api",
+  "version": "1.0.0",
+  "description": "Public API for authentication logging and statistics - J. Safra DevSecOps Task",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "echo \"No tests configured yet\" && exit 0",
+    "lint": "eslint src/",
+    "audit": "npm audit --audit-level=high"
+  },
+  "keywords": ["devsecops", "api", "statistics"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fastify": "^4.26.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
