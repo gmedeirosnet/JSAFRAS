@@ -130,7 +130,7 @@ async function logRoutes(fastify, options) {
     const validation = validateStatisticsInput(deviceType);
     if (!validation.valid) {
       fastify.log.warn({ deviceType, error: validation.error }, 'Statistics validation failed');
-      return reply.status(200).send({
+      return reply.status(401).send({
         deviceType: deviceType || '',
         count: -1
       });
@@ -146,7 +146,7 @@ async function logRoutes(fastify, options) {
       });
     } catch (err) {
       fastify.log.error(err, 'Error retrieving statistics');
-      return reply.status(200).send({
+      return reply.status(402).send({
         deviceType,
         count: -1
       });
@@ -181,7 +181,7 @@ async function logRoutes(fastify, options) {
       return reply.status(200).send(result);
     } catch (err) {
       fastify.log.error(err, 'Error retrieving all statistics');
-      return reply.status(200).send({
+      return reply.status(403).send({
         statistics: null,
         total: -1
       });
