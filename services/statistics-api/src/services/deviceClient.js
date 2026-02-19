@@ -1,5 +1,3 @@
-'use strict';
-
 const DEVICE_REGISTRATION_API_URL = process.env.DEVICE_REGISTRATION_API_URL || 'http://device-registration-api:3001';
 
 async function registerDevice(userKey, deviceType) {
@@ -29,6 +27,4 @@ async function registerDevice(userKey, deviceType) {
   }
 }
 
-module.exports = {
-  registerDevice,
-};
+export { registerDevice };

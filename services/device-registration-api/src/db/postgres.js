@@ -1,6 +1,5 @@
-'use strict';
-
-const { Pool } = require('pg');
+import pg from 'pg';
+const { Pool } = pg;
 
 // PostgreSQL connection pool
 const pool = new Pool({
@@ -44,9 +43,4 @@ async function insertDeviceRegistration(userKey, deviceType) {
   return result.rows[0];
 }
 
-module.exports = {
-  pool,
-  initPostgres,
-  closePostgres,
-  insertDeviceRegistration,
-};
+export { pool, initPostgres, closePostgres, insertDeviceRegistration };

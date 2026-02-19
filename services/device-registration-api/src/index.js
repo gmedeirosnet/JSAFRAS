@@ -1,12 +1,11 @@
-'use strict';
+import Fastify from 'fastify';
+import deviceRoutes from './routes/device.js';
+import { initPostgres, closePostgres } from './db/postgres.js';
 
-const fastify = require('fastify')({
+const fastify = Fastify({
   logger: true,
   trustProxy: true
 });
-
-const deviceRoutes = require('./routes/device');
-const { initPostgres, closePostgres } = require('./db/postgres');
 
 const PORT = process.env.DEVICE_REGISTRATION_API_PORT || 3001;
 const HOST = '0.0.0.0';

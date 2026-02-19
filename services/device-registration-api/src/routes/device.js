@@ -1,6 +1,4 @@
-'use strict';
-
-const { insertDeviceRegistration } = require('../db/postgres');
+import { insertDeviceRegistration } from '../db/postgres.js';
 
 // Valid device types
 const VALID_DEVICE_TYPES = ['iOS', 'Android', 'Watch', 'TV'];
@@ -83,4 +81,4 @@ async function deviceRoutes(fastify, options) {
   });
 }
 
-module.exports = deviceRoutes;
+export default deviceRoutes;

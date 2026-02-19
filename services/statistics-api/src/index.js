@@ -1,12 +1,11 @@
-'use strict';
+import Fastify from 'fastify';
+import logRoutes from './routes/log.js';
+import { initPostgres, closePostgres } from './db/postgres.js';
 
-const fastify = require('fastify')({
+const fastify = Fastify({
   logger: true,
   trustProxy: true
 });
-
-const logRoutes = require('./routes/log');
-const { initPostgres, closePostgres } = require('./db/postgres');
 
 const PORT = process.env.STATISTICS_API_PORT || 3000;
 const HOST = '0.0.0.0';

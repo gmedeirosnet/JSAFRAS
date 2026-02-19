@@ -1,7 +1,5 @@
-'use strict';
-
-const { getDeviceTypeCount, getAllDeviceTypeCounts } = require('../db/postgres');
-const { registerDevice } = require('../services/deviceClient');
+import { getDeviceTypeCount, getAllDeviceTypeCounts } from '../db/postgres.js';
+import { registerDevice } from '../services/deviceClient.js';
 
 const VALID_DEVICE_TYPES = ['iOS', 'Android', 'Watch', 'TV'];
 
@@ -191,4 +189,4 @@ async function logRoutes(fastify, options) {
   });
 }
 
-module.exports = logRoutes;
+export default logRoutes;

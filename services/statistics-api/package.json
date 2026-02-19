@@ -2,6 +2,7 @@
   "name": "statistics-api",
   "version": "1.0.0",
   "description": "Public API for authentication logging and statistics - J. Safra DevSecOps Task",
+  "type": "module",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

@@ -2,6 +2,7 @@
   "name": "device-registration-api",
   "version": "1.0.0",
   "description": "Internal API for registering device types - J. Safra DevSecOps Task",
+  "type": "module",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

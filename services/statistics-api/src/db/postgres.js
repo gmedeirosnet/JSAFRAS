@@ -1,6 +1,5 @@
-'use strict';
-
-const { Pool } = require('pg');
+import pg from 'pg';
+const { Pool } = pg;
 
 const pool = new Pool({
   host: process.env.POSTGRES_HOST || 'localhost',
@@ -65,10 +64,4 @@ async function getAllDeviceTypeCounts() {
   return { statistics, total };
 }
 
-module.exports = {
-  pool,
-  initPostgres,
-  closePostgres,
-  getDeviceTypeCount,
-  getAllDeviceTypeCounts,
-};
+export { pool, initPostgres, closePostgres, getDeviceTypeCount, getAllDeviceTypeCounts };
