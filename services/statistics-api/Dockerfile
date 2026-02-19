@@ -1,7 +1,7 @@
 # ================================
 # Stage 1: Build
 # ================================
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ RUN npm ci --omit=dev
 # ================================
 # Stage 2: Production
 # ================================
-FROM node:20-alpine AS production
+FROM node:24-alpine AS production
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
